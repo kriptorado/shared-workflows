@@ -1,0 +1,69 @@
+name: Publish SDK snapshot NPM package
+
+on:
+  workflow_call:
+    inputs:
+      sdk-path:
+        required: false
+        default: "./packages/sdk"
+        type: string
+      python-version:
+        required: false
+        type: string
+        default: "3.12"
+
+jobs:
+  publish-sdk-snapshot:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    permissions: write-all
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for get-previous-tag to work
+
+      - name: "Get previous tag"
+        id: previoustag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        with:
+          prefix: "release/v"
+          fallback: "release/v0.0.0"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        continue-on-error: true
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: "pip"
+          cache-dependency-path: "**/requirements.txt"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Tag SDK version
+        working-directory: ${{ inputs.sdk-path }}
+        run: npm version "$(echo "${{ steps.previoustag.outputs.tag }}" | awk -F'release/v' '{print $2}')"-SNAPSHOT.${{ github.run_id }}
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Publish SDK package
+        working-directory: ${{ inputs.sdk-path }}
+        run: pnpm publish --tag snapshot --no-git-checks

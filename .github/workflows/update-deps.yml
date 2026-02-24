@@ -1,0 +1,64 @@
+name: Update dependencies
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: false
+        type: string
+        default: "3.12"
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    permissions: write-all
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        continue-on-error: true
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: "pip"
+          cache-dependency-path: "**/requirements.txt"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Update internal dependencies
+        run: pnpm -r up "@kriptorado/*" --latest
+
+      - name: Update all other dependencies
+        run: pnpm -r up
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: Auto update dependencies
+          branch: auto-update-deps
+          title: Automated dependencies update
+          body: |
+            This PR updates internal dependencies to their latest versions,
+            and updates all other dependencies to their latest compatible versions.

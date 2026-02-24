@@ -1,0 +1,69 @@
+name: Deploy CDK stack(s)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      python-version:
+        required: false
+        type: string
+        default: "3.12"
+
+jobs:
+  deploy-cdk:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets[vars.AWS_ACCESS_KEY_ID_REF] }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets[vars.AWS_SECRET_ACCESS_KEY_REF] }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      DEPLOY_STAGE: ${{ inputs.environment }}
+      REGISTRY: ghcr.io
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        continue-on-error: true
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: "pip"
+          cache-dependency-path: "**/requirements.txt"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Python dependencies
+        run: pnpm install-python-deps
+        continue-on-error: true
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Deploy stacks
+        run: pnpm run cdk-deploy
