@@ -18,8 +18,8 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      AWS_ACCESS_KEY_ID: ${{ secrets[vars.AWS_ACCESS_KEY_ID_REF] }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets[vars.AWS_SECRET_ACCESS_KEY_REF] }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ vars.AWS_REGION }}
       DEPLOY_STAGE: ${{ inputs.environment }}
       REGISTRY: ghcr.io
